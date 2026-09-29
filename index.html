@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>محوّل JSON — تحويل وتحميل</title>
+<style>
+  :root{
+    --bg:#0e1117; --bg2:#151924; --card:#171b26; --line:#252b3a; --line2:#2f374a;
+    --txt:#e7ebf3; --muted:#8b95ab; --accent:#4f8cff; --accent2:#8b5cf6;
+    --ok:#22c55e; --err:#ef4444; --warn:#f59e0b; --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Segoe UI",Tahoma,system-ui,-apple-system,"Noto Kufi Arabic",sans-serif;
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(79,140,255,.16), transparent 60%),
+      radial-gradient(700px 450px at 5% 0%, rgba(139,92,246,.14), transparent 60%),
+      var(--bg);
+    color:var(--txt); min-height:100vh; padding:28px 18px 60px; line-height:1.6;
+  }
+  .app{max-width:1180px;margin:0 auto}
+  header{text-align:center;margin-bottom:28px}
+  header h1{
+    font-size:clamp(1.6rem,4vw,2.3rem); font-weight:800; letter-spacing:-.5px;
+    background:linear-gradient(90deg,#8ab4ff,#c4b5fd,#7dd3fc);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header p{color:var(--muted);font-size:.95rem;margin-top:6px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{
+    background:linear-gradient(180deg,var(--card),var(--bg2));
+    border:1px solid var(--line); border-radius:var(--radius); padding:16px;
+    box-shadow:0 12px 34px rgba(0,0,0,.35);
+  }
+  .card h2{
+    font-size:.85rem;font-weight:700;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.08em;margin-bottom:12px;display:flex;align-items:center;gap:8px;
+  }
+  .card h2::before{
+    content:"";width:6px;height:6px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+  }
+  .tabs{
+    display:flex;gap:6px;background:#0f131c;padding:5px;
+    border-radius:11px;border:1px solid var(--line);margin-bottom:14px;
+  }
+  .tabs button{
+    flex:1;padding:9px 10px;border:0;border-radius:8px;cursor:pointer;
+    background:transparent;color:var(--muted);font:inherit;font-size:.86rem;
+    font-weight:600;transition:.18s;white-space:nowrap;
+  }
+  .tabs button:hover{color:var(--txt);background:#1b2130}
+  .tabs button.active{
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:#fff;box-shadow:0 4px 14px rgba(79,140,255,.3);
+  }
+  .pane{display:none}
+  .pane.active{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  textarea,input[type=text]{
+    width:100%;background:#0f131c;border:1px solid var(--line2);
+    color:var(--txt);border-radius:10px;padding:12px;
+    font-family:"Consolas","Courier New",monospace;font-size:.87rem;
+    resize:vertical;outline:none;transition:.18s;
+  }
+  textarea{min-height:230px;line-height:1.75}
+  textarea:focus,input[type=text]:focus{
+    border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,140,255,.15);
+  }
+  textarea::placeholder,input::placeholder{color:#5b6478}
+  .hint{font-size:.78rem;color:var(--muted);margin-top:8px;line-height:1.7}
+  code.k{
+    background:#0f131c;border:1px solid var(--line2);border-radius:5px;
+    padding:1px 6px;font-size:.78rem;color:#9ec1ff;direction:ltr;display:inline-block;
+  }
+  .opts{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:14px}
+  .chk{display:flex;align-items:center;gap:8px;font-size:.84rem;color:var(--muted);cursor:pointer;user-select:none}
+  .chk input{
+    appearance:none;width:18px;height:18px;border:1.5px solid var(--line2);
+    border-radius:5px;background:#0f131c;cursor:pointer;position:relative;transition:.18s;flex:0 0 auto;
+  }
+  .chk input:checked{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent}
+  .chk input:checked::after{
+    content:"";position:absolute;inset:0;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3E%3Cpath d='M6.5 11.5 3 8l1.1-1.1 2.4 2.4 5-5L12.6 5.4z'/%3E%3C/svg%3E") center/13px no-repeat;
+  }
+  .pair-row{display:grid;grid-template-columns:1fr 1fr 38px;gap:8px;margin-bottom:8px}
+  .pair-row input{font-family:inherit;font-size:.86rem}
+  .icon-btn{
+    background:#1b2130;border:1px solid var(--line2);color:var(--muted);
+    border-radius:9px;cursor:pointer;font-size:.9rem;transition:.18s;
+  }
+  .icon-btn:hover{background:#3a1f27;border-color:#5c2b36;color:#ff8b8b}
+  .add-btn{
+    width:100%;padding:10px;border:1px dashed var(--line2);background:transparent;
+    color:var(--muted);border-radius:10px;cursor:pointer;font:inherit;font-size:.85rem;
+    font-weight:600;transition:.18s;margin-top:4px;
+  }
+  .add-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(79,140,255,.06)}
+  .prev-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .badge{
+    font-size:.76rem;font-weight:700;padding:4px 11px;border-radius:99px;
+    border:1px solid transparent;white-space:nowrap;
+  }
+  .badge.ok{background:rgba(34,197,94,.12);color:#4ade80;border-color:rgba(34,197,94,.3)}
+  .badge.err{background:rgba(239,68,68,.12);color:#f87171;border-color:rgba(239,68,68,.3)}
+  .badge.idle{background:rgba(139,149,171,.1);color:var(--muted);border-color:var(--line2)}
+  .meta{font-size:.76rem;color:var(--muted);direction:ltr}
+  pre#out{
+    background:#0b0e15;border:1px solid var(--line);border-radius:11px;
+    padding:14px;min-height:300px;max-height:460px;overflow:auto;
+    direction:ltr;text-align:left;
+    font-family:"Consolas","Courier New",monospace;font-size:.83rem;line-height:1.7;
+    white-space:pre;tab-size:2;
+  }
+  pre#out::-webkit-scrollbar{width:9px;height:9px}
+  pre#out::-webkit-scrollbar-thumb{background:#2b3346;border-radius:9px}
+  pre#out::-webkit-scrollbar-track{background:transparent}
+  .tok-key{color:#8ab4ff} .tok-str{color:#7ee0a8} .tok-num{color:#f0b866}
+  .tok-bool{color:#c792ea} .tok-null{color:#f87171}
+  .empty-msg{color:#4d5568;font-style:italic}
+  .dl-card{margin-top:18px}
+  .dl-row{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+  .name-wrap{
+    flex:1;min-width:240px;display:flex;align-items:center;
+    background:#0f131c;border:1px solid var(--line2);border-radius:10px;
+    padding:0 4px 0 0;overflow:hidden;transition:.18s;
+  }
+  .name-wrap:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,140,255,.15)}
+  .name-wrap input{border:0;background:transparent;border-radius:0;padding:12px;font-family:inherit;font-size:.9rem;flex:1}
+  .name-wrap input:focus{box-shadow:none}
+  .ext{
+    color:var(--muted);font-family:"Consolas",monospace;font-size:.87rem;
+    padding:0 12px;border-right:1px solid var(--line2);align-self:stretch;
+    display:flex;align-items:center;direction:ltr;background:#131823;
+  }
+  .btn{
+    padding:12px 26px;border:0;border-radius:10px;cursor:pointer;font:inherit;
+    font-weight:700;font-size:.9rem;transition:.18s;white-space:nowrap;
+    display:inline-flex;align-items:center;gap:8px;justify-content:center;
+  }
+  .btn-main{
+    background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;
+    box-shadow:0 6px 20px rgba(79,140,255,.32);
+  }
+  .btn-main:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 10px 26px rgba(79,140,255,.42)}
+  .btn-main:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;transform:none}
+  .btn-ghost{background:#1b2130;color:var(--txt);border:1px solid var(--line2)}
+  .btn-ghost:hover{background:#232b3d;border-color:#3a445c}
+  .file-name-preview{
+    font-size:.78rem;color:var(--muted);margin-top:10px;direction:ltr;text-align:left;
+    font-family:"Consolas",monospace;
+  }
+  .file-name-preview b{color:#9ec1ff;font-weight:600}
+  #toast{
+    position:fixed;bottom:26px;left:50%;transform:translate(-50%,80px);
+    background:#1c2333;border:1px solid var(--line2);color:var(--txt);
+    padding:12px 22px;border-radius:11px;font-size:.87rem;font-weight:600;
+    box-shadow:0 14px 40px rgba(0,0,0,.5);opacity:0;transition:.3s;z-index:99;
+    pointer-events:none;
+  }
+  #toast.show{transform:translate(-50%,0);opacity:1}
+  #toast.ok{border-color:rgba(34,197,94,.4)}
+  #toast.err{border-color:rgba(239,68,68,.4)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>محوّل JSON</h1>
+    <p>حوّل أي نص أو جدول أو قائمة كائنات إلى ملف <b>JSON</b> صالح — اكتب الاسم ثم حمّله</p>
+  </header>
+
+  <div class="grid">
+
+    <!-- INPUT CARD -->
+    <section class="card">
+      <h2>المصدر</h2>
+
+      <div class="tabs" id="tabs">
+        <button class="active" data-mode="json">JSON / نص</button>
+        <button data-mode="csv">CSV</button>
+        <button data-mode="pairs">مفتاح وقيمة</button>
+      </div>
+
+      <!-- JSON / TEXT -->
+      <div class="pane active" id="pane-json">
+        <textarea id="in-json" placeholder='الصق هنا...&#10;&#10;1) كائن JSON واحد:&#10;{ "name": "Novexa", "category": "technology" }&#10;&#10;2) عدة كائنات (كل سطر كائن مستقل):&#10;{"name":"Novexa","category":"technology","style":"modern"}&#10;{"name":"Kaviro","category":"software","style":"minimal"}&#10;{"name":"Lumenpath","category":"ai","style":"futuristic"}&#10;&#10;3) نص عادي (كل سطر عنصر):&#10;تفاح&#10;موز&#10;عنب'></textarea>
+        <p class="hint">
+          يتم اكتشاف النوع تلقائيًا:
+          <code class="k">JSON</code> واحد، أو <b>عدة كائنات (سطر لكل كائن)</b> تُجمَع في مصفوفة،
+          أو نص عادي، أو أزواج <code class="k">key=value</code>.
+        </p>
+      </div>
+
+      <!-- CSV -->
+      <div class="pane" id="pane-csv">
+        <textarea id="in-csv" placeholder="name,age,city&#10;أحمد,25,القاهرة&#10;سارة,30,دبي&#10;محمد,28,الرياض"></textarea>
+        <div class="opts">
+          <label class="chk"><input type="checkbox" id="csv-header" checked> الصف الأول عناوين</label>
+          <label class="chk"><input type="checkbox" id="csv-types" checked> تحويل الأرقام تلقائيًا</label>
+        </div>
+      </div>
+
+      <!-- PAIRS -->
+      <div class="pane" id="pane-pairs">
+        <div id="pairs-list"></div>
+        <button class="add-btn" id="add-pair">+ إضافة حقل</button>
+        <div class="opts">
+          <label class="chk"><input type="checkbox" id="pairs-types" checked> تحويل القيم تلقائيًا</label>
+        </div>
+        <p class="hint">استخدم النقطة للتداخل: <code class="k">user.name</code> → <code class="k">{"user":{"name":...}}</code></p>
+      </div>
+
+      <div class="opts" style="border-top:1px solid var(--line);padding-top:14px;margin-top:16px">
+        <label class="chk"><input type="checkbox" id="opt-pretty" checked> تنسيق مُرتَّب (Pretty)</label>
+        <label class="chk"><input type="checkbox" id="opt-array" checked> تغليف النتائج المتعددة في مصفوفة</label>
+      </div>
+    </section>
+
+    <!-- PREVIEW CARD -->
+    <section class="card">
+      <div class="prev-head">
+        <h2 style="margin:0">المعاينة</h2>
+        <div style="display:flex;gap:10px;align-items:center">
+          <span class="meta" id="size-info"></span>
+          <span class="badge idle" id="status">بانتظار الإدخال</span>
+        </div>
+      </div>
+      <pre id="out"><span class="empty-msg">// ستظهر النتيجة هنا...</span></pre>
+    </section>
+
+  </div>
+
+  <!-- DOWNLOAD CARD -->
+  <section class="card dl-card">
+    <h2>تحميل الملف</h2>
+    <div class="dl-row">
+      <div class="name-wrap">
+        <input type="text" id="filename" placeholder="اكتب اسم الملف هنا..." value="my-data" spellcheck="false">
+        <span class="ext">.json</span>
+      </div>
+      <button class="btn btn-ghost" id="copy-btn">📋 نسخ</button>
+      <button class="btn btn-main" id="download-btn" disabled>⬇ تحميل JSON</button>
+    </div>
+    <div class="file-name-preview">الملف الناتج: <b id="fname-preview">my-data.json</b></div>
+  </section>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* =========================================================
+   أدوات مساعدة
+   ========================================================= */
+const $ = id => document.getElementById(id);
+
+const escHtml = s => String(s).replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+function highlight(json){
+  const safe = escHtml(json);
+  return safe.replace(
+    /("(?:\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(?:true|false)\b|\bnull\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    m => {
+      let cls = 'tok-num';
+      if (/^"/.test(m))                cls = /:$/.test(m) ? 'tok-key' : 'tok-str';
+      else if (/^(true|false)$/.test(m)) cls = 'tok-bool';
+      else if (m === 'null')             cls = 'tok-null';
+      return `<span class="${cls}">${m}</span>`;
+    }
+  );
+}
+
+function infer(v){
+  const t = v.trim();
+  if (t === '')      return '';
+  if (t === 'true')  return true;
+  if (t === 'false') return false;
+  if (t === 'null')  return null;
+  if (/^-?\d+(\.\d+)?$/.test(t)) return Number(t);
+  return v;
+}
+
+/* =========================================================
+   الحالة
+   ========================================================= */
+let mode  = 'json';
+let pairs = [{ key: '', value: '' }];
+
+/* =========================================================
+   استخراج البيانات من كل تبويب
+   ========================================================= */
+function dataFromJsonPane(){
+  const raw = $('in-json').value.trim();
+  if (!raw) return undefined;
+
+  const wrapArray = $('opt-array').checked;
+
+  // 1) JSON صالح ككتلة واحدة
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed;
+  } catch(_){}
+
+  // 2) عدة أسطر، كل سطر كائن/قيمة JSON مستقلة → مصفوفة
+  const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return undefined;
+
+  const looksJson = lines.every(l => /^[\[{"\d\-tfn]/.test(l));
+  if (looksJson){
+    const parsed = [];
+    let ok = true;
+    for (const line of lines){
+      try { parsed.push(JSON.parse(line)); }
+      catch(_){ ok = false; break; }
+    }
+    if (ok){
+      // إذا كل العناصر نفسها مصفوفات، يمكن دمجها
+      const allArrays = parsed.every(p => Array.isArray(p));
+      if (allArrays && !wrapArray){
+        return [].concat(...parsed);
+      }
+      // إذا عنصر واحد فقط، أرجعه كما هو
+      if (parsed.length === 1) return parsed[0];
+      return parsed;
+    }
+  }
+
+  // 3) أزواج مفتاح=قيمة
+  const kvRe  = /^([^:=]+?)\s*[:=]\s*(.*)$/;
+  const auto  = $('pairs-types').checked;
+  const allKV = lines.every(l => kvRe.test(l));
+
+  if (allKV && lines.length > 0){
+    const obj = {};
+    for (const line of lines){
+      const m = line.match(kvRe);
+      const k = m[1].trim();
+      const v = m[2].trim();
+      setNested(obj, k, auto ? infer(v) : v);
+    }
+    return obj;
+  }
+
+  // 4) نص عادي → مصفوفة نصوص
+  return lines;
+}
+
+function dataFromCsvPane(){
+  const raw = $('in-csv').value.trim();
+  if (!raw) return undefined;
+
+  const rows = parseCSV(raw);
+  if (!rows.length) return undefined;
+
+  const hasHeader = $('csv-header').checked;
+  const autoTypes = $('csv-types').checked;
+  const conv = v => autoTypes ? infer(v) : v;
+
+  if (!hasHeader){
+    return rows.map(r => r.map(conv));
+  }
+
+  const headers = rows[0].map((h, i) => h.trim() || `column_${i + 1}`);
+  return rows.slice(1).map(r => {
+    const o = {};
+    headers.forEach((h, i) => { o[h] = conv(r[i] ?? ''); });
+    return o;
+  });
+}
+
+function dataFromPairs(){
+  const auto = $('pairs-types').checked;
+  const obj  = {};
+  let count  = 0;
+  for (const p of pairs){
+    const k = p.key.trim();
+    if (!k) continue;
+    const v = p.value;
+    setNested(obj, k, auto ? infer(v) : v);
+    count++;
+  }
+  return count ? obj : undefined;
+}
+
+function setNested(obj, path, value){
+  const parts = path.split('.').map(p => p.trim()).filter(Boolean);
+  if (!parts.length) return;
+  let cur = obj;
+  for (let i = 0; i < parts.length - 1; i++){
+    const p = parts[i];
+    if (typeof cur[p] !== 'object' || cur[p] === null) cur[p] = {};
+    cur = cur[p];
+  }
+  cur[parts[parts.length - 1]] = value;
+}
+
+function parseCSV(text){
+  const first = text.split(/\r?\n/)[0] || '';
+  let delim = ',';
+  if ((first.match(/\t/g) || []).length > (first.match(/,/g) || []).length) delim = '\t';
+  else if ((first.match(/;/g) || []).length > (first.match(/,/g) || []).length) delim = ';';
+
+  const rows = [];
+  let row = [], field = '', inQ = false;
+
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (inQ){
+      if (c === '"'){
+        if (text[i + 1] === '"'){ field += '"'; i++; }
+        else inQ = false;
+      } else field += c;
+    } else {
+      if (c === '"')            inQ = true;
+      else if (c === delim)     { row.push(field); field = ''; }
+      else if (c === '\n')      { row.push(field); rows.push(row); row = []; field = ''; }
+      else if (c === '\r')      { /* تجاهل */ }
+      else                      field += c;
+    }
+  }
+  if (field !== '' || row.length){ row.push(field); rows.push(row); }
+
+  return rows.filter(r => r.some(c => String(c).trim() !== ''));
+}
+
+/* =========================================================
+   الإخراج
+   ========================================================= */
+function getData(){
+  try{
+    if (mode === 'json')  return { ok: true,  data: dataFromJsonPane() };
+    if (mode === 'csv')   return { ok: true,  data: dataFromCsvPane()  };
+    if (mode === 'pairs') return { ok: true,  data: dataFromPairs()    };
+  } catch (e){
+    return { ok: false, error: e.message };
+  }
+  return { ok: false, error: 'وضع غير معروف' };
+}
+
+function buildJSON(){
+  const res = getData();
+  if (!res.ok) return { ok: false, error: res.error };
+  if (res.data === undefined) return { ok: true, empty: true, text: '' };
+
+  const pretty = $('opt-pretty').checked;
+  let text;
+  try{
+    text = JSON.stringify(res.data, null, pretty ? 2 : 0);
+  } catch(e){
+    return { ok: false, error: 'تعذّر التحويل: ' + e.message };
+  }
+  if (typeof text !== 'string') return { ok: false, error: 'القيمة غير قابلة للتحويل' };
+
+  try { JSON.parse(text); }
+  catch(e){ return { ok: false, error: 'الناتج ليس JSON صالحًا' }; }
+
+  return { ok: true, text };
+}
+
+/* =========================================================
+   العرض
+   ========================================================= */
+function render(){
+  const out    = $('out');
+  const status = $('status');
+  const dlBtn  = $('download-btn');
+  const res    = buildJSON();
+
+  if (!res.ok){
+    status.className = 'badge err';
+    status.textContent = '✕ خطأ';
+    out.innerHTML = `<span class="tok-null">// خطأ: ${escHtml(res.error)}</span>`;
+    $('size-info').textContent = '';
+    dlBtn.disabled = true;
+    return;
+  }
+
+  if (res.empty){
+    status.className = 'badge idle';
+    status.textContent = 'بانتظار الإدخال';
+    out.innerHTML = '<span class="empty-msg">// ستظهر النتيجة هنا...</span>';
+    $('size-info').textContent = '';
+    dlBtn.disabled = true;
+    return;
+  }
+
+  status.className = 'badge ok';
+  status.textContent = '✓ JSON صالح';
+  out.innerHTML = highlight(res.text);
+
+  const bytes = new Blob([res.text]).size;
+  $('size-info').textContent = `${bytes.toLocaleString('en-US')} bytes`;
+  dlBtn.disabled = false;
+}
+
+/* =========================================================
+   أسماء الملفات
+   ========================================================= */
+function sanitizeName(v){
+  let n = String(v || '').trim().replace(/\.json$/i, '');
+  n = n.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-');
+  n = n.replace(/\s+/g, ' ').trim();
+  n = n.replace(/^\.+/, '').replace(/[.\s]+$/, '');
+  if (!n) n = 'data';
+  return n.slice(0, 80);
+}
+
+function updateNamePreview(){
+  const name = sanitizeName($('filename').value);
+  $('fname-preview').textContent = name + '.json';
+  return name;
+}
+
+/* =========================================================
+   التحميل
+   ========================================================= */
+function downloadJSON(){
+  const res = buildJSON();
+  if (!res.ok || res.empty){
+    toast('لا يوجد محتوى صالح للتحميل', 'err');
+    return;
+  }
+  try { JSON.parse(res.text); }
+  catch(e){ toast('الناتج غير صالح!', 'err'); return; }
+
+  const name = updateNamePreview();
+  const blob = new Blob([res.text], { type: 'application/json;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name + '.json';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  toast('✓ تم تحميل ' + name + '.json', 'ok');
+}
+
+/* =========================================================
+   النسخ
+   ========================================================= */
+async function copyJSON(){
+  const res = buildJSON();
+  if (!res.ok || res.empty){ toast('لا يوجد محتوى للنسخ', 'err'); return; }
+  try{
+    await navigator.clipboard.writeText(res.text);
+    toast('✓ تم النسخ إلى الحافظة', 'ok');
+  } catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = res.text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast('✓ تم النسخ', 'ok'); }
+    catch(_){ toast('تعذّر النسخ', 'err'); }
+    document.body.removeChild(ta);
+  }
+}
+
+/* =========================================================
+   Toast
+   ========================================================= */
+let toastTimer;
+function toast(msg, type = ''){
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = type; }, 2600);
+}
+
+/* =========================================================
+   حقول مفتاح/قيمة
+   ========================================================= */
+function renderPairs(){
+  const list = $('pairs-list');
+  list.innerHTML = '';
+
+  pairs.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'pair-row';
+    row.innerHTML = `
+      <input type="text" class="p-key" placeholder="المفتاح" value="${escHtml(p.key)}" spellcheck="false">
+      <input type="text" class="p-val" placeholder="القيمة" value="${escHtml(p.value)}" spellcheck="false">
+      <button class="icon-btn" title="حذف" type="button">✕</button>
+    `;
+
+    const keyIn = row.querySelector('.p-key');
+    const valIn = row.querySelector('.p-val');
+
+    keyIn.addEventListener('input', e => { pairs[i].key   = e.target.value; render(); });
+    valIn.addEventListener('input', e => { pairs[i].value = e.target.value; render(); });
+
+    row.querySelector('.icon-btn').addEventListener('click', () => {
+      pairs.splice(i, 1);
+      if (!pairs.length) pairs.push({ key: '', value: '' });
+      renderPairs();
+      render();
+    });
+
+    list.appendChild(row);
+  });
+}
+
+/* =========================================================
+   ربط الأحداث
+   ========================================================= */
+$('tabs').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-mode]');
+  if (!btn) return;
+  mode = btn.dataset.mode;
+
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b === btn));
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+  $('pane-' + mode).classList.add('active');
+  render();
+});
+
+['in-json', 'in-csv'].forEach(id => $(id).addEventListener('input', render));
+['opt-pretty', 'opt-array', 'csv-header', 'csv-types', 'pairs-types'].forEach(id =>
+  $(id).addEventListener('change', render));
+
+$('filename').addEventListener('input', () => { updateNamePreview(); });
+
+$('add-pair').addEventListener('click', () => {
+  pairs.push({ key: '', value: '' });
+  renderPairs();
+  render();
+  const inputs = document.querySelectorAll('#pairs-list .p-key');
+  if (inputs.length) inputs[inputs.length - 1].focus();
+});
+
+$('download-btn').addEventListener('click', downloadJSON);
+$('copy-btn').addEventListener('click', copyJSON);
+
+$('filename').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !$('download-btn').disabled) downloadJSON();
+});
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's'){
+    e.preventDefault();
+    if (!$('download-btn').disabled) downloadJSON();
+  }
+});
+
+/* =========================================================
+   التشغيل
+   ========================================================= */
+renderPairs();
+updateNamePreview();
+render();
+</script>
+</body>
+</html>
